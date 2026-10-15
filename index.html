@@ -1,0 +1,845 @@
+<head>
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Math Differentiator</title>
+
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)']],
+        displayMath: [['\\[', '\\]']]
+      },
+      options: {
+        skipHtmlTags: [
+          'script', 'noscript', 'style', 'textarea', 'pre', 'code'
+        ]
+      }
+    };
+  </script>
+
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+  <script>
+    function formatMath(text) {
+      return String(text)
+        .replace(/Find\s+the\s+derivative\s+of\s+(the\s+function\s+)?/gi, "")
+        .replace(/\b([a-zA-Z])\s*\*\s*/g, "$1")
+        .replace(/\^(\d+)/g, "^{$1}")
+        .trim();
+    }
+
+    function showFormattedProblem(text) {
+      const box = document.getElementById("problem");
+      box.innerHTML = "\\(" + formatMath(text) + "\\)";
+
+      if (window.MathJax && window.MathJax.typesetPromise) {
+        window.MathJax.typesetPromise([box]).catch(console.error);
+      }
+    }
+  </script>
+</head>
+
+<style>
+
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f3f5fb;
+  color: #202647;
+}
+
+header {
+  background: #4338ca;
+  color: white;
+  text-align: center;
+  padding: 28px 16px;
+}
+
+header h1 { margin: 0 0 10px; }
+
+main {
+  max-width: 950px;
+  margin: 25px auto;
+  padding: 0 15px;
+}
+
+.card {
+  background: white;
+  border-radius: 16px;
+  padding: 22px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 16px #20264712;
+}
+
+h2 { margin-top: 0; }
+
+label {
+  display: block;
+  font-weight: bold;
+  margin: 14px 0 7px;
+}
+
+select, input, textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #cbd0e0;
+  border-radius: 9px;
+  font-size: 16px;
+}
+
+button {
+  background: #4338ca;
+  color: white;
+  border: none;
+  border-radius: 9px;
+  padding: 12px 16px;
+  margin: 8px 5px 0 0;
+  cursor: pointer;
+  font-size: 15px;
+}
+
+button:hover { background: #312e81; }
+
+.secondary { background: #e8eaff; color: #312e81; }
+
+.result {
+  background: #f0f2ff;
+  border-left: 4px solid #6366f1;
+  padding: 15px;
+  border-radius: 8px;
+  margin-top: 14px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.small { color: #606783; font-size: 14px; }
+
+footer {
+  text-align: center;
+  padding: 25px;
+  color: #606783;
+}
+</style>
+</head>
+
+<body>
+<header>
+  <h1>AI Math Differentiator</h1>
+  <p id="subtitle">Learn derivatives step by step</p>
+  <button onclick="changeLanguage()" class="secondary" id="langBtn">
+    Қазақша
+  </button>
+</header>
+
+<main>
+  <section class="card">
+    <h2 id="practiceTitle">Derivative Practice</h2>
+
+    <label id="topicLabel">Choose a topic</label>
+    <select id="topic">
+      <option value="power">Power Rule</option>
+      <option value="chain">Chain Rule</option>
+      <option value="product">Product Rule</option>
+      <option value="quotient">Quotient Rule</option>
+      <option value="trig">Trigonometric Derivatives</option>
+      <option value="log">Logarithmic Derivatives</option>
+    </select>
+
+    <label id="levelLabel">Choose difficulty</label>
+    <select id="level">
+      <option value="easy">Easy</option>
+      <option value="medium">Medium</option>
+      <option value="hard">Hard</option>
+    </select>
+
+    <button onclick="newProblem()" id="newBtn">New Problem</button>
+
+    <div class="result" id="problem">
+      Find the derivative: y = x³
+    </div>
+
+    <label id="answerLabel">Your answer</label>
+    <input id="answer" placeholder="Type your derivative here">
+
+    <button onclick="checkAnswer()" id="checkBtn">Check Answer</button>
+    <div id="feedback" class="result" style="display:none"></div>
+
+    <button class="secondary" onclick="showHint()" id="hintBtn">Hint</button>
+    <button class="secondary" onclick="showSolution()" id="solutionBtn">Full Solution</button>
+
+    <div id="hint" class="result" style="display:none"></div>
+    <div id="solution" class="result" style="display:none"></div>
+  </section>
+
+  <section class="card">
+    <h2>🤖 AI Tutor — Оқу көмекшісі</h2>
+    <p id="tutorIntro">Ask a question about derivatives.</p>
+
+    <textarea id="question" rows="3"
+      placeholder="Example: Explain the chain rule"></textarea>
+
+    <button onclick="askTutor()" id="askBtn">Ask Tutor</button>
+    <div id="tutorAnswer" class="result" style="display:none"></div>
+
+    <p class="small" id="disclaimer">
+      Demo version: the tutor uses prepared explanations, not a live AI model.
+    </p>
+  </section>
+
+  <section class="card">
+    <h2 id="progressTitle">Your Progress</h2>
+    <p id="progress">Correct answers: 0</p>
+  </section>
+</main>
+
+<footer>AI Math Differentiator · Mathematics Learning Project</footer>
+
+<script>
+let kazakh = false;
+let correct = 0;
+let current = null;
+
+const problems = {
+ power: {
+  easy: {
+    q: "Find the derivative: y = x³",
+    a: ["3x^2", "3x²"],
+    hint: "Use the power rule: bring the exponent down and subtract one.",
+    sol: "y = x³\nStep 1: Multiply by the exponent 3.\nStep 2: Reduce the exponent by one.\nAnswer: y' = 3x²."
+  },
+    medium: {
+      q: "Find the derivative: y = 4x³ + 2x² - 5x + 7",
+      a: ["12x^2+4x-5", "12x²+4x-5"],
+      hint: "Differentiate each term separately. A constant has derivative zero.",
+      sol: "y = 4x³ + 2x² - 5x + 7\n(4x³)' = 12x²\n(2x²)' = 4x\n(-5x)' = -5\n(7)' = 0\nAnswer: y' = 12x² + 4x - 5."
+    },
+    hard: {
+      q: "Find the derivative: y = 2x⁵ - 3x³ + 4x² - 8",
+      a: ["10x^4-9x^2+8x", "10x⁴-9x³+8x"],
+      hint: "Use the power rule on every term.",
+      sol: "Differentiate each term:\n(2x⁵)' = 10x⁴\n(-3x³)' = -9x²\n(4x²)' = 8x\n(-8)' = 0\nAnswer: y' = 10x⁴ - 9x² + 8x."
+    }
+  },
+  chain: {
+    easy: {
+      q: "Find the derivative: y = (2x + 1)²",
+      a: ["8x+4", "2(2x+1)*2", "4(2x+1)"],
+      hint: "Differentiate the outer power, then multiply by the derivative of 2x + 1.",
+      sol: "Outer function: u², derivative 2u.\nInner function: u = 2x + 1, derivative 2.\nTherefore y' = 2(2x + 1) · 2 = 4(2x + 1) = 8x + 4."
+    },
+    medium: {
+      q: "Find the derivative: y = (3x + 1)⁴",
+      a: ["12(3x+1)^3", "12(3x+1)³"],
+      hint: "Use the chain rule: 4(3x + 1)³ multiplied by 3.",
+      sol: "Outer derivative: 4(3x + 1)³.\nInner derivative: 3.\nMultiply: y' = 4(3x + 1)³ · 3.\nAnswer: y' = 12(3x + 1)³."
+    },
+    hard: {
+      q: "Find the derivative: y = (x² + 2x)³",
+      a: ["3(x^2+2x)^2*(2x+2)", "3(x^2+2x)^2(2x+2)", "6(x+1)(x^2+2x)^2"],
+      hint: "The inner function is x² + 2x. Its derivative is 2x + 2.",
+      sol: "Outer derivative: 3(x² + 2x)².\nInner derivative: 2x + 2.\nMultiply them:\ny' = 3(x² + 2x)²(2x + 2).\nEquivalent answer: 6(x + 1)(x² + 2x)²."
+    }
+  },
+  product: {
+    easy: {
+      q: "Find the derivative: y = x · x²",
+      a: ["3x^2", "3x²"],
+      hint: "Use (uv)' = u'v + uv'.",
+      sol: "Let u = x and v = x².\nu' = 1, v' = 2x.\ny' = 1·x² + x·2x = 3x²."
+    },
+    medium: {
+      q: "Find the derivative: y = x² sin(x)",
+      a: ["2xsin(x)+x^2cos(x)", "2xsinx+x^2cosx"],
+      hint: "Derivative of x² is 2x; derivative of sin(x) is cos(x).",
+      sol: "Product rule: (uv)' = u'v + uv'.\nu = x², u' = 2x.\nv = sin(x), v' = cos(x).\nAnswer: y' = 2x sin(x) + x² cos(x)."
+    },
+    hard: {
+      q: "Find the derivative: y = x³ cos(x)",
+      a: ["3x^2cos(x)-x^3sin(x)", "3x^2cosx-x^3sinx"],
+      hint: "Use (uv)' = u'v + uv'. Remember (cos x)' = -sin x.",
+      sol: "u = x³, u' = 3x².\nv = cos(x), v' = -sin(x).\ny' = 3x² cos(x) - x³ sin(x)."
+    }
+  },
+  quotient: {
+    easy: {
+      q: "Find the derivative: y = 1/x",
+      a: ["-1/x^2", "-x^-2"],
+      hint: "Rewrite 1/x as x⁻¹ and use the power rule.",
+      sol: "y = x⁻¹.\nUsing (xⁿ)' = nxⁿ⁻¹:\ny' = -x⁻² = -1/x²."
+    },
+    medium: {
+      q: "Find the derivative: y = x/(x + 1)",
+      a: ["1/(x+1)^2", "1/(x+1)²"],
+      hint: "Use (u/v)' = (u'v - uv')/v².",
+      sol: "u = x, u' = 1; v = x + 1, v' = 1.\ny' = [(1)(x + 1) - x(1)]/(x + 1)².\nSimplify: y' = 1/(x + 1)²."
+    },
+    hard: {
+      q: "Find the derivative: y = (x² + 1)/x",
+      a: ["1-1/x^2", "1-1/x²", "1+x^-2"],
+      hint: "You can simplify first: y = x + 1/x.",
+      sol: "Simplify: y = x + x⁻¹.\nDifferentiate: y' = 1 - x⁻².\nAnswer: y' = 1 - 1/x², where x ≠ 0."
+    }
+  },
+  trig: {
+    easy: {
+      q: "Find the derivative: y = sin(x)",
+      a: ["cos(x)", "cosx"],
+      hint: "The derivative of sin(x) is cos(x).",
+      sol: "Use the basic trigonometric rule:\n(d/dx) sin(x) = cos(x).\nAnswer: y' = cos(x)."
+    },
+    medium: {
+      q: "Find the derivative: y = 3sin(x) + cos(x)",
+      a: ["3cos(x)-sin(x)", "3cosx-sinx"],
+      hint: "Differentiate each term. The derivative of cos(x) is -sin(x).",
+      sol: "(3sin x)' = 3cos x.\n(cos x)' = -sin x.\nAnswer: y' = 3cos x - sin x."
+    },
+    hard: {
+      q: "Find the derivative: y = sin(2x)",
+      a: ["2cos(2x)", "2cos2x"],
+      hint: "Use the chain rule. The inner function 2x has derivative 2.",
+      sol: "Outer derivative: cos(2x).\nInner derivative: 2.\nAnswer: y' = 2cos(2x)."
+    }
+  },
+  log: {
+    easy: {
+      q: "Find the derivative: y = ln(x)",
+      a: ["1/x"],
+      hint: "The derivative of ln(x) is 1/x, for x > 0.",
+      sol: "Use the basic rule:\n(d/dx) ln(x) = 1/x.\nAnswer: y' = 1/x, x > 0."
+    },
+    medium: {
+      q: "Find the derivative: y = ln(2x + 3)",
+      a: ["2/(2x+3)"],
+      hint: "Use the chain rule: derivative of ln(u) is u'/u.",
+      sol: "Inner function u = 2x + 3, so u' = 2.\nThus y' = u'/u = 2/(2x + 3).\nDomain: x > -3/2."
+    },
+    hard: {
+      q: "Find the derivative: y = ln(x² + 1)",
+      a: ["2x/(x^2+1)", "2x/(x²+1)"],
+      hint: "The derivative of the inner function x² + 1 is 2x.",
+      sol: "Let u = x² + 1, so u' = 2x.\nUsing (ln u)' = u'/u:\nAnswer: y' = 2x/(x² + 1)."
+    }
+  }
+};
+
+
+
+let lastProblemKey = "";
+
+
+
+async function newProblem() {
+  const topic = document.getElementById("topic").value;
+  const level = document.getElementById("level").value;
+  const box = document.getElementById("problem");
+  const button = document.getElementById("newBtn");
+
+  button.disabled = true;
+  box.textContent = kazakh
+    ? "Жаңа есеп дайындалып жатыр..."
+    : "Generating a new problem...";
+
+  try {
+    const response = await fetch(
+      "https://ai-math-tutor.240105091.workers.dev/",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "generate",
+          language: kazakh ? "kk" : "en",
+          topic: topic,
+          level: level
+        })
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.details || data.error || "Request failed");
+    }
+
+    if (!data.problem || !data.problem.q || !data.problem.a) {
+      throw new Error("Invalid problem received.");
+    }
+
+    current = data.problem;
+    lastProblemKey = current.q;
+
+    
+const box = document.getElementById("problem");
+
+const formatted = String(current.q)
+  .replace(/Find\s+the\s+derivative\s+of\s+(the\s+function\s+)?/gi, "")
+  .replace(/\b([a-zA-Z])\s*\*\s*/g, "$1")
+  .replace(/\^(\d+)/g, "^{$1}")
+  .replace(/\*/g, "")
+  .trim();
+
+
+
+const cleanText = String(current.q)
+  .replace(/\s+/g, " ")
+  .trim();
+
+const match = cleanText.match(/f\(x\)\s*=\s*.+/i);
+
+box.innerHTML = "";
+
+if (match) {
+  const sentence = document.createElement("p");
+  sentence.textContent = cleanText.substring(0, match.index).trim();
+  sentence.style.marginBottom = "12px";
+  sentence.style.lineHeight = "1.6";
+
+  const formula = document.createElement("div");
+  const math = match[0]
+    .replace(/\s*\*\s*/g, "")
+    .replace(/\^(\d+)/g, "^{$1}");
+
+  formula.innerHTML = "\\(" + math + "\\)";
+
+  box.appendChild(sentence);
+  box.appendChild(formula);
+
+  if (window.MathJax && window.MathJax.typesetPromise) {
+    window.MathJax.typesetPromise([box]).catch(console.error);
+  }
+} else {
+  box.textContent = cleanText;
+}
+
+
+if (window.MathJax && window.MathJax.typesetPromise) {
+  window.MathJax.typesetPromise([box]).catch(console.error);
+}
+
+
+if (window.MathJax && window.MathJax.typesetPromise) {
+  window.MathJax.typesetPromise([box]).catch(console.error);
+}
+
+    document.getElementById("answer").value = "";
+    document.getElementById("feedback").style.display = "none";
+    document.getElementById("hint").style.display = "none";
+    document.getElementById("solution").style.display = "none";
+
+    if (window.MathJax) {
+      MathJax.typesetPromise([box]).catch(() => {});
+    }
+
+  } catch (error) {
+    box.textContent = (kazakh
+      ? "Жаңа есепті алу мүмкін болмады: "
+      : "Could not generate a new problem: ") + error.message;
+  } finally {
+    button.disabled = false;
+  }
+}
+
+
+function normalize(s) {
+  return s.toLowerCase()
+    .replace(/[’']/g, "")
+    .replace(/\s+/g, "")
+    .replace(/[(){}]/g, "")
+    .replace(/\*/g, "")
+    .replace(/²/g, "^2")
+    .replace(/³/g, "^3")
+    .replace(/⁴/g, "^4")
+    .replace(/⁵/g, "^5")
+    .replace(/−/g, "-");
+}
+
+function checkAnswer() {
+  if (!current) newProblem();
+
+  const user = normalize(document.getElementById("answer").value);
+  const accepted = current.a.map(normalize);
+  const feedback = document.getElementById("feedback");
+
+  if (!user) {
+    feedback.textContent = "Please enter your answer first.";
+  } else if (accepted.includes(user)) {
+    correct++;
+    feedback.textContent = kazakh
+      ? "Дұрыс! Жарайсың! 🎉"
+      : "Correct! Well done! 🎉";
+    document.getElementById("progress").textContent =
+      (kazakh ? "Дұрыс жауаптар: " : "Correct answers: ") + correct;
+  } else {
+    feedback.textContent = kazakh
+      ? "Әлі дұрыс емес. Hint батырмасын басып, қайта байқап көр!"
+      : "Not quite. Use the Hint button and try again!";
+  }
+  feedback.style.display = "block";
+}
+
+
+function formatExplanation(element) {
+  element.innerHTML = element.innerHTML
+    .replace(/\b([a-zA-Z])\s*\*\s*/g, "$1")
+    .replace(/\^(\d+)/g, "^{$1}");
+
+  if (window.MathJax && window.MathJax.typesetPromise) {
+    window.MathJax.typesetPromise([element]).catch(console.error);
+  }
+}
+
+
+
+
+function showHint() {
+  const box = document.getElementById("hint");
+  box.style.display = "block";
+  box.innerHTML = "";
+
+  const title = document.createElement("strong");
+  title.textContent = kazakh ? "Кеңес: " : "Hint: ";
+  box.appendChild(title);
+
+  const content = document.createElement("div");
+  content.style.whiteSpace = "pre-wrap";
+  content.style.lineHeight = "1.8";
+
+  const topic = document.getElementById("topic").value;
+  const level = document.getElementById("level").value;
+
+  const kazakhHints = {
+    power: {
+      easy: "Дәрежелік ереже: \\(\\frac{d}{dx}x^n=nx^{n-1}\\).",
+      medium: "Әр мүшенің туындысын жеке тап. Тұрақты санның туындысы нөл.",
+      hard: "Әр мүшеге дәрежелік ережені қолдан."
+    },
+    chain: {
+      easy: "Тізбекті ереже: \\((f(g(x)))'=f'(g(x))g'(x)\\).",
+      medium: "Сыртқы және ішкі функциялардың туындыларын тап.",
+      hard: "Сыртқы функцияның туындысын ішкі функцияның туындысына көбейт."
+    },
+    product: {
+      easy: "Көбейтінді ережесі: \\((uv)'=u'v+uv'\\).",
+      medium: "Екі функцияның туындыларын тауып, көбейтінді ережесін қолдан.",
+      hard: "Формула: \\((uv)'=u'v+uv'\\)."
+    },
+    quotient: {
+      easy: "Бөлінді ережесін қолдан.",
+      medium: "Формула: \\(\\left(\\frac{u}{v}\\right)'=\\frac{u'v-uv'}{v^2}\\).",
+      hard: "Бөлінді ережесін қолданып, нәтижені ықшамда."
+    },
+    trig: {
+      easy: "Формула: \\((\\sin x)'=\\cos x\\).",
+      medium: "Формулалар: \\((\\sin x)'=\\cos x\\), \\((\\cos x)'=-\\sin x\\).",
+      hard: "Құрама функция болса, тізбекті ережені де қолдан."
+    },
+    log: {
+      easy: "Формула: \\((\\ln x)'=\\frac{1}{x}\\), мұнда \\(x>0\\).",
+      medium: "Формула: \\((\\ln u)'=\\frac{u'}{u}\\).",
+      hard: "Логарифм ішіндегі функцияның туындысын да есепте."
+    }
+  };
+
+  const hintText = kazakh
+    ? (kazakhHints[topic]?.[level] || current.hint || "")
+    : (current.hint || "");
+
+  
+content.textContent = "";
+
+const parts = hintText.split(
+  /(d\/dx\[x\^n\]\s*=\s*n\*x\^\(n-1\)|x\^\(n-1\)|x\^n|d\/dx|sin\(x\)|cos\(x\)|ln\(x\)|1\/x)/g
+);
+
+parts.forEach(part => {
+  let math = "";
+
+  if (part === "d/dx[x^n] = n*x^(n-1)") {
+    math = "\\frac{d}{dx}x^n=nx^{n-1}";
+  } else if (part === "x^(n-1)") {
+    math = "x^{n-1}";
+  } else if (part === "x^n") {
+    math = "x^n";
+  } else if (part === "d/dx") {
+    math = "\\frac{d}{dx}";
+  } else if (part === "sin(x)") {
+    math = "\\sin(x)";
+  } else if (part === "cos(x)") {
+    math = "\\cos(x)";
+  } else if (part === "ln(x)") {
+    math = "\\ln(x)";
+  } else if (part === "1/x") {
+    math = "\\frac{1}{x}";
+  }
+
+  if (math) {
+    const span = document.createElement("span");
+    span.innerHTML = "\\(" + math + "\\)";
+    content.appendChild(span);
+  } else {
+    content.appendChild(document.createTextNode(part));
+  }
+});
+
+box.appendChild(content);
+
+if (window.MathJax && window.MathJax.typesetPromise) {
+  window.MathJax.typesetPromise([box]).catch(console.error);
+}
+
+
+  if (window.MathJax && window.MathJax.typesetPromise) {
+    window.MathJax.typesetPromise([box]).catch(console.error);
+  }
+}
+
+
+function showSolution() {
+  if (!current) newProblem();
+
+  const topic = document.getElementById("topic").value;
+  const level = document.getElementById("level").value;
+  const box = document.getElementById("solution");
+
+  const kazakhSolutions = {
+    power: {
+      easy: "Берілгені: y = x³.\n1-қадам: Дәреже көрсеткіші 3-ті алдына жазамыз.\n2-қадам: Дәрежені бірге азайтамыз.\nЖауабы: y' = 3x².",
+      medium: "Берілгені: y = 4x³ + 2x² − 5x + 7.\n1-қадам: (4x³)' = 12x².\n2-қадам: (2x²)' = 4x.\n3-қадам: (−5x)' = −5.\n4-қадам: 7 тұрақты санының туындысы 0.\nЖауабы: y' = 12x² + 4x − 5.",
+      hard: "Әр мүшенің туындысын жеке табамыз.\n(2x⁵)' = 10x⁴.\n(−3x³)' = −9x².\n(4x²)' = 8x.\nТұрақты санның туындысы 0.\nЖауабы: y' = 10x⁴ − 9x² + 8x."
+    },
+    chain: {
+      easy: "Берілгені: y = (2x + 1)².\n1-қадам: Сыртқы функцияның туындысы: 2(2x + 1).\n2-қадам: Ішкі функцияның туындысы: 2.\n3-қадам: y' = 2(2x + 1) · 2.\nЖауабы: y' = 8x + 4.",
+      medium: "Берілгені: y = (3x + 1)⁴.\n1-қадам: Сыртқы функцияның туындысы: 4(3x + 1)³.\n2-қадам: Ішкі функцияның туындысы: 3.\n3-қадам: y' = 4(3x + 1)³ · 3.\nЖауабы: y' = 12(3x + 1)³.",
+      hard: "Берілгені: y = (x² + 2x)³.\n1-қадам: Сыртқы функцияның туындысы: 3(x² + 2x)².\n2-қадам: Ішкі функцияның туындысы: 2x + 2.\n3-қадам: Екеуін көбейтеміз.\nЖауабы: y' = 3(x² + 2x)²(2x + 2)."
+    },
+    product: {
+      easy: "Берілгені: y = x · x².\nКөбейтінді ережесі: (uv)' = u'v + uv'.\n1-қадам: y' = 1 · x² + x · 2x.\nЖауабы: y' = 3x².",
+      medium: "Берілгені: y = x² sin(x).\n1-қадам: (x²)' = 2x.\n2-қадам: (sin x)' = cos x.\n3-қадам: Көбейтінді ережесін қолданамыз.\nЖауабы: y' = 2x sin(x) + x² cos(x).",
+      hard: "Берілгені: y = x³ cos(x).\n1-қадам: (x³)' = 3x².\n2-қадам: (cos x)' = −sin x.\n3-қадам: Көбейтінді ережесін қолданамыз.\nЖауабы: y' = 3x² cos(x) − x³ sin(x)."
+    },
+    quotient: {
+      easy: "Берілгені: y = 1/x = x⁻¹.\nДәрежелік ережені қолданамыз.\nЖауабы: y' = −1/x².",
+      medium: "Берілгені: y = x/(x + 1).\n1-қадам: Алымның туындысы 1.\n2-қадам: Бөлімнің туындысы 1.\n3-қадам: Бөлінді ережесін қолданамыз.\nЖауабы: y' = 1/(x + 1)².",
+      hard: "Берілгені: y = (x² + 1)/x.\n1-қадам: y = x + 1/x түрінде жазамыз.\n2-қадам: Әр мүшенің туындысын табамыз.\nЖауабы: y' = 1 − 1/x², мұнда x ≠ 0."
+    },
+    trig: {
+      easy: "Берілгені: y = sin(x).\nЕреже бойынша (sin x)' = cos x.\nЖауабы: y' = cos(x).",
+      medium: "Берілгені: y = 3sin(x) + cos(x).\n1-қадам: (3sin x)' = 3cos x.\n2-қадам: (cos x)' = −sin x.\nЖауабы: y' = 3cos(x) − sin(x).",
+      hard: "Берілгені: y = sin(2x).\n1-қадам: Сыртқы функцияның туындысы cos(2x).\n2-қадам: Ішкі функцияның туындысы 2.\nЖауабы: y' = 2cos(2x)."
+    },
+    log: {
+      easy: "Берілгені: y = ln(x).\nЕреже бойынша (ln x)' = 1/x.\nЖауабы: y' = 1/x, мұнда x > 0.",
+      medium: "Берілгені: y = ln(2x + 3).\n1-қадам: Ішкі функцияның туындысы 2.\n2-қадам: (ln u)' = u'/u ережесін қолданамыз.\nЖауабы: y' = 2/(2x + 3).",
+      hard: "Берілгені: y = ln(x² + 1).\n1-қадам: Ішкі функцияның туындысы 2x.\n2-қадам: Логарифм туындысы ережесін қолданамыз.\nЖауабы: y' = 2x/(x² + 1)."
+    }
+  };
+
+  
+const solutionText = kazakh
+  ? kazakhSolutions[topic][level]
+  : current.sol;
+
+box.innerHTML = "";
+
+const title = document.createElement("strong");
+title.textContent = kazakh ? "Толық шешімі:" : "Full Solution:";
+box.appendChild(title);
+
+const content = document.createElement("div");
+content.style.lineHeight = "1.9";
+content.style.marginTop = "10px";
+
+
+
+
+
+
+const lines = solutionText.split("\n");
+
+lines.forEach(line => {
+  const p = document.createElement("p");
+  p.style.margin = "8px 0";
+
+  // Дәрежелерді LaTeX форматына ауыстыру
+  let text = line
+    .replace(/x⁰/g, "x^{0}")
+    .replace(/x¹/g, "x^{1}")
+    .replace(/x²/g, "x^{2}")
+    .replace(/x³/g, "x^{3}")
+    .replace(/x⁴/g, "x^{4}")
+    .replace(/x⁵/g, "x^{5}")
+    .replace(/x⁶/g, "x^{6}")
+    .replace(/x⁷/g, "x^{7}")
+    .replace(/x⁸/g, "x^{8}")
+    .replace(/x⁹/g, "x^{9}")
+    .replace(/·/g, "\\cdot ");
+
+  // Формула бар жолдарды MathJax-қа беру
+  if (
+    /[=]|[yY]'|sin|cos|ln|Жауабы:/.test(text)
+  ) {
+    p.innerHTML = "\\(" + text + "\\)";
+  } else {
+    p.textContent = text;
+  }
+
+  content.appendChild(p);
+});
+
+box.appendChild(content);
+box.style.display = "block";
+
+if (window.MathJax?.typesetPromise) {
+  window.MathJax.typesetClear([box]);
+  window.MathJax.typesetPromise([box]).catch(console.error);
+} else {
+  console.error("MathJax әлі жүктелмеген.");
+}
+}
+
+
+
+
+function formatAIAnswer(text) {
+  const escapeHTML = (s) => s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+  let safe = escapeHTML(text);
+
+  safe = safe.replace(/\\\[([\s\S]*?)\\\]/g,
+    (_, formula) => `<div class="math-block">\\[${formula}\\]</div>`);
+  safe = safe.replace(/\\\(([\s\S]*?)\\\)/g,
+    (_, formula) => `<span>\\(${formula}\\)</span>`);
+
+  safe = safe.replace(/^### (.*)$/gm, "<h3>$1</h3>");
+  safe = safe.replace(/^## (.*)$/gm, "<h2>$1</h2>");
+  safe = safe.replace(/^# (.*)$/gm, "<h1>$1</h1>");
+  safe = safe.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+  safe = safe.replace(/^\s*---+\s*$/gm, "<hr>");
+  safe = safe.replace(/^\s*[-*] (.*)$/gm, "• $1");
+  safe = safe.replace(/\n/g, "<br>");
+
+  return safe;
+}
+
+async function askTutor() {
+  const input = document.getElementById("question");
+  const box = document.getElementById("tutorAnswer");
+  const topic = document.getElementById("topic").value;
+  const level = document.getElementById("level").value;
+
+  const question = input.value.trim();
+
+  if (!question) {
+    box.textContent = "Please enter a question.";
+    box.style.display = "block";
+    return;
+  }
+
+  box.textContent = "AI is thinking...";
+  box.style.display = "block";
+
+  try {
+    const response = await fetch(
+      "https://ai-math-tutor.240105091.workers.dev/",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          question: question,
+          language: kazakh ? "kk" : "en",
+          topic: topic,
+          level: level
+        })
+      }
+    );
+
+    const data = await response.json();
+
+
+if (!response.ok) {
+  throw new Error(
+    data.details
+      ? `${data.details} (HTTP ${data.status || response.status})`
+      : `${data.error || "AI request failed"} (HTTP ${response.status})`
+  );
+}
+
+
+box.innerHTML = formatAIAnswer(
+  data.answer || "Жауап алынбады."
+);
+
+if (window.MathJax) {
+  MathJax.typesetPromise([box]);
+}
+
+} catch (error) {
+  box.textContent = "AI connection error: " + error.message;
+}
+}
+
+
+function changeLanguage() {
+  kazakh = !kazakh;
+
+  const text = {
+    subtitle: kazakh
+      ? "Туындыны қадам бойынша үйрен"
+      : "Learn derivatives step by step",
+    practiceTitle: kazakh ? "Туынды бойынша жаттығу" : "Derivative Practice",
+    topicLabel: kazakh ? "Тақырыпты таңда" : "Choose a topic",
+    levelLabel: kazakh ? "Қиындық деңгейін таңда" : "Choose difficulty",
+    answerLabel: kazakh ? "Жауабыңды енгіз" : "Enter your answer",
+    newBtn: kazakh ? "Жаңа есеп" : "New Problem",
+    checkBtn: kazakh ? "Жауапты тексеру" : "Check Answer",
+    hintBtn: kazakh ? "Көмек алу" : "Hint",
+    solutionBtn: kazakh ? "Толық шешім" : "Full Solution",
+    tutorIntro: kazakh
+      ? "Туынды тақырыбы бойынша сұрағыңды жаз."
+      : "Ask a question about derivatives.",
+    askBtn: kazakh ? "Сұрақ қою" : "Ask Tutor",
+    progressTitle: kazakh ? "Сенің прогресің" : "Your Progress",
+    langBtn: kazakh ? "English" : "Қазақша",
+    disclaimer: kazakh
+      ? "Демо нұсқа: Tutor алдын ала жазылған түсіндірмелерді пайдаланады. Нақты AI әлі қосылмаған."
+      : "Demo version: the tutor uses prepared explanations. A live AI model is not connected yet."
+  };
+
+  Object.keys(text).forEach(function(id) {
+    const element = document.getElementById(id);
+    if (element) element.textContent = text[id];
+  });
+
+  const level = document.getElementById("level");
+  level.options[0].text = kazakh ? "Оңай" : "Easy";
+  level.options[1].text = kazakh ? "Орташа" : "Medium";
+  level.options[2].text = kazakh ? "Қиын" : "Hard";
+
+  const topic = document.getElementById("topic");
+  const topicNames = kazakh
+    ? ["Дәрежелік ереже", "Тізбекті ереже", "Көбейтінді ережесі",
+       "Бөлінді ережесі", "Тригонометриялық туындылар",
+       "Логарифмдік туындылар"]
+    : ["Power Rule", "Chain Rule", "Product Rule",
+       "Quotient Rule", "Trigonometric Derivatives",
+       "Logarithmic Derivatives"];
+
+  for (let i = 0; i < topic.options.length; i++) {
+    topic.options[i].text = topicNames[i];
+  }
+
+  document.getElementById("progress").textContent =
+    (kazakh ? "Дұрыс жауаптар: " : "Correct answers: ") + correct;
+}
+
+newProblem();
+</script>
+</body>
+</html>
